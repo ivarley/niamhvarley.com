@@ -758,7 +758,6 @@ function placePictures() {
     return true;
   }
 
-  const loader = new THREE.TextureLoader();
   let pictureIdx = 0;
   for (const slot of ordered) {
     if (pictureIdx >= PICTURES.length) break;
@@ -766,16 +765,36 @@ function placePictures() {
     used.push(slot);
     const filename = PICTURES[pictureIdx++];
     const url = 'img/' + encodeURIComponent(filename);
-    loader.load(
-      url,
-      (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        addFramedPicture(texture, slot);
-      },
-      undefined,
+    loadDownscaledTexture(url, 1024,
+      (texture) => addFramedPicture(texture, slot),
       (err) => console.warn('picture failed to load:', filename, err)
     );
   }
+}
+
+// Load an image, downscale to fit within `maxDim` on its longest side, and turn
+// it into a CanvasTexture. iOS Safari has a tight WebGL memory budget — full-res
+// phone photos × 14 silently fails to upload, which is why pictures vanish on iPad.
+function loadDownscaledTexture(url, maxDim, onLoad, onError) {
+  const img = new Image();
+  img.onload = () => {
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    const scale = Math.min(1, maxDim / Math.max(w, h));
+    if (scale < 1) { w = Math.round(w * scale); h = Math.round(h * scale); }
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // skip mipmaps — saves 33% texture memory and avoids power-of-two warnings
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    onLoad(tex);
+  };
+  img.onerror = (err) => onError && onError(err);
+  img.src = url;
 }
 
 function addFramedPicture(texture, slot) {
