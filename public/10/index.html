@@ -470,6 +470,20 @@ const PICTURES = [
 const ROWS = MAZE.length;
 const COLS = MAZE[0].length;
 
+// Base path for relative resources. Render serves `/10` directly without
+// redirecting to `/10/`, which breaks browser-default relative-URL resolution
+// (e.g. `img/foo.jpg` would resolve to `/img/foo.jpg`, not `/10/img/foo.jpg`).
+// We compute the right base once and use it explicitly when fetching pictures.
+const URL_BASE = (() => {
+  let p = location.pathname;
+  if (!p.endsWith('/')) {
+    const i = p.lastIndexOf('/');
+    const last = p.substring(i + 1);
+    p = last.includes('.') ? p.substring(0, i + 1) : (p + '/');
+  }
+  return p;
+})();
+
 // world units per maze cell — wider halls feel less claustrophobic
 const CELL = 1.6;
 // helper: grid (col,row) -> world (x,z) at cell centre
@@ -778,7 +792,7 @@ function placePictures() {
   function loadNext(i) {
     if (i >= queue.length) return;
     const { filename, slot } = queue[i];
-    const url = 'img/' + encodeURIComponent(filename);
+    const url = URL_BASE + 'img/' + encodeURIComponent(filename);
     loadDownscaledTexture(url, 1024,
       (texture) => {
         try {
