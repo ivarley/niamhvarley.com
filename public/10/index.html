@@ -186,18 +186,84 @@
   .touchpad-3d .back { grid-column: 2; grid-row: 2; }
   .touchpad-3d .right{ grid-column: 3; grid-row: 2; }
 
-  /* shown when JS detects a touch device (more reliable than media query for iPad) */
-  body.touch-device .touchpad-3d { display: grid; }
+  /* touch device: hide keyboard hint */
   body.touch-device .hud-3d .keys { display: none; }
   /* enlarge the touchpad on tablets for fingers */
   @media (min-width: 600px) {
-    body.touch-device .touchpad-3d {
+    .touchpad-3d {
       grid-template-columns: repeat(3, 84px);
       grid-template-rows: repeat(2, 84px);
       gap: 12px; bottom: 2.2rem;
     }
-    body.touch-device .touchpad-3d button { font-size: 2rem; }
+    .touchpad-3d button { font-size: 2rem; }
   }
+  /* control mode: pad vs joystick */
+  body.touch-device.controls-pad   .touchpad-3d { display: grid; }
+  body.touch-device.controls-stick .joystick    { display: block; }
+  body.touch-device.controls-stick .look-zone   { display: block; }
+  body.touch-device .ctrl-toggle { display: block; }
+
+  /* invisible drag area covering the right half of the screen */
+  .look-zone {
+    position: absolute; top: 0; right: 0;
+    width: 50%; height: 100%;
+    z-index: 4;
+    background: transparent;
+    display: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+  }
+
+  /* virtual joystick anchored at bottom-left */
+  .joystick {
+    position: absolute;
+    left: 1.6rem; bottom: 1.6rem;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(6,11,21,0.35);
+    border: 2px solid rgba(245,196,74,0.45);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    z-index: 5;
+    display: none;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .joystick-stick {
+    position: absolute;
+    width: 60px; height: 60px;
+    left: calc(50% - 30px);
+    top:  calc(50% - 30px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, var(--gold) 80%);
+    border: 2px solid rgba(255,255,255,0.85);
+    box-shadow: 0 0 20px rgba(245,196,74,0.55);
+    pointer-events: none;
+    transform: translate(0, 0);
+    transition: transform 0.15s ease;
+  }
+  @media (min-width: 600px) {
+    .joystick { width: 170px; height: 170px; left: 2rem; bottom: 2rem; }
+    .joystick-stick { width: 76px; height: 76px;
+                      left: calc(50% - 38px); top: calc(50% - 38px); }
+  }
+
+  /* mode toggle button — small, top-left */
+  .ctrl-toggle {
+    position: absolute; top: 1.2rem; left: 1.2rem;
+    background: rgba(6,11,21,0.6);
+    border: 1px solid rgba(245,196,74,0.3);
+    color: var(--gold-glow);
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 0.95rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 6;
+    display: none;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .ctrl-toggle:active { background: rgba(245,196,74,0.2); }
 
   /* ----- Clue overlay ----- */
   .clue-overlay {
@@ -277,7 +343,7 @@
 
     <p>Today you turn <em>ten</em>. I have spent the better part of the year making a list of all the things I love most about you — and rather than scribbling them on a card, I have tied each one to a balloon and let them loose in my labyrinth.</p>
     <p>There are <strong>ten</strong> balloons. (Of course there are ten. You are ten.) Find every one. Read what I have written. They are all true.</p>
-    <p>If you have a keyboard: walk forward with the <strong>up arrow</strong>, back with <strong>down</strong>, and turn with <strong>left</strong> and <strong>right</strong>. If you are on an iPad or a phone: four buttons will appear at the bottom of the screen — <strong>↑</strong> to walk, <strong>↓</strong> to back up, <strong>↺ ↻</strong> to turn. Tap and hold to keep moving.</p>
+    <p>If you have a keyboard: walk forward with the <strong>up arrow</strong>, back with <strong>down</strong>, and turn with <strong>left</strong> and <strong>right</strong>. If you are on an iPad or a phone: a <strong>joystick</strong> appears at the bottom-left — drag with your left thumb to walk and side-step. Drag anywhere on the <strong>right side</strong> of the screen with your right thumb to look around. (If you'd rather have buttons, tap "⇄ Buttons" in the top-left.)</p>
     <p>And once every balloon is yours, come find me at the heart of the maze.</p>
     <div class="signoff">
       Honk softly,
@@ -301,6 +367,12 @@
     <button class="back"  data-dir="back">↓</button>
     <button class="right" data-dir="right">↻</button>
   </div>
+  <!-- Roblox-style dual-thumb controls -->
+  <div class="look-zone" id="lookZone"></div>
+  <div class="joystick" id="joystick">
+    <div class="joystick-stick" id="joystickStick"></div>
+  </div>
+  <button class="ctrl-toggle" id="ctrlToggle">⇄ Buttons</button>
 </section>
 
 <!-- ===================== CLUE OVERLAY ===================== -->
@@ -529,8 +601,17 @@ let bobPhase = 0;      // accumulator for sine-wave gait (only advances while wa
 let bobAmp   = 0;      // current bob amplitude, eased in/out so stops feel smooth
 
 // velocity state — gradually ramps up when input starts (warmup) and down when released
-let walkVel = 0;       // signed scalar in world-units/sec along forward axis
-let turnVel = 0;       // signed scalar in rad/sec around Y
+let walkVelF = 0;      // signed scalar in world-units/sec along forward axis
+let walkVelS = 0;      // signed scalar in world-units/sec along right (strafe) axis
+let turnVel  = 0;      // signed scalar in rad/sec around Y
+
+// touch joystick + look-drag state (Roblox-style controls)
+const JOY_RADIUS     = 56;          // px, how far the stick can travel from centre
+const TOUCH_LOOK_SENS = 0.0045;     // rad of yaw per pixel of finger drag
+const joyState  = { active: false, id: -1, dx: 0, dy: 0, cx: 0, cy: 0 };
+const lookState = { active: false, id: -1, lastX: 0 };
+const joyForward = () => joyState.active ? -joyState.dy / JOY_RADIUS : 0;
+const joyStrafe  = () => joyState.active ?  joyState.dx / JOY_RADIUS : 0;
 
 const keys = {};
 let cluePhase = false;
@@ -884,38 +965,51 @@ function hitsWall(x, z, r = 0.32) {
 function updatePlayer(dt) {
   if (cluePhase) {
     // freeze position but bleed off momentum so resume starts at rest
-    walkVel *= 0.85;
-    turnVel *= 0.85;
+    walkVelF *= 0.85;
+    walkVelS *= 0.85;
+    turnVel  *= 0.85;
     return;
   }
 
-  // input
-  let turnInput = 0, moveInput = 0;
+  // gather inputs from keys + buttons + joystick
+  let turnInput = 0, moveInput = 0, strafeInput = 0;
   if (keys['ArrowLeft']  || keys['a'] || keys['A']) turnInput += 1;
   if (keys['ArrowRight'] || keys['d'] || keys['D']) turnInput -= 1;
   if (keys['ArrowUp']    || keys['w'] || keys['W']) moveInput += 1;
   if (keys['ArrowDown']  || keys['s'] || keys['S']) moveInput -= 1;
+  // joystick: Y → forward/back, X → strafe
+  moveInput   += joyForward();
+  strafeInput += joyStrafe();
+  // clamp combined input to unit magnitudes
+  moveInput   = Math.max(-1, Math.min(1, moveInput));
+  strafeInput = Math.max(-1, Math.min(1, strafeInput));
 
   // ramp velocities — slower accel (warmup) than decel (quicker stop)
-  const targetWalk = moveInput * player.speed;
-  const targetTurn = turnInput * player.turnSpeed;
+  const targetWalkF = moveInput   * player.speed;
+  const targetWalkS = strafeInput * player.speed;
+  const targetTurn  = turnInput   * player.turnSpeed;
   const ACCEL_W = player.speed     * 5;   // reaches full walk in ~0.2s
   const DECEL_W = player.speed     * 11;  // settles to a stop in ~0.09s
   const ACCEL_T = player.turnSpeed * 7;   // slightly snappier turn warmup
   const DECEL_T = player.turnSpeed * 14;
-  walkVel = approach(walkVel, targetWalk,
-    Math.abs(targetWalk) > Math.abs(walkVel) ? ACCEL_W : DECEL_W, dt);
+  walkVelF = approach(walkVelF, targetWalkF,
+    Math.abs(targetWalkF) > Math.abs(walkVelF) ? ACCEL_W : DECEL_W, dt);
+  walkVelS = approach(walkVelS, targetWalkS,
+    Math.abs(targetWalkS) > Math.abs(walkVelS) ? ACCEL_W : DECEL_W, dt);
   turnVel = approach(turnVel, targetTurn,
     Math.abs(targetTurn) > Math.abs(turnVel) ? ACCEL_T : DECEL_T, dt);
 
-  // turn
+  // turn (from keys/buttons; touch-drag look modifies yaw directly elsewhere)
   player.yaw += turnVel * dt;
 
-  // walk
+  // walk: forward + strafe combined
   const prevX = player.x, prevZ = player.z;
-  if (Math.abs(walkVel) > 0.001) {
-    const dx = -Math.sin(player.yaw) * walkVel * dt;
-    const dz = -Math.cos(player.yaw) * walkVel * dt;
+  const totalSpeed = Math.hypot(walkVelF, walkVelS);
+  if (totalSpeed > 0.001) {
+    const fx = -Math.sin(player.yaw),  fz = -Math.cos(player.yaw);  // forward unit vec
+    const rx =  Math.cos(player.yaw),  rz = -Math.sin(player.yaw);  // player's right
+    const dx = (fx * walkVelF + rx * walkVelS) * dt;
+    const dz = (fz * walkVelF + rz * walkVelS) * dt;
     if (!hitsWall(player.x + dx, player.z)) player.x += dx;
     if (!hitsWall(player.x, player.z + dz)) player.z += dz;
   }
@@ -923,7 +1017,7 @@ function updatePlayer(dt) {
   // walking gait — bob amplitude tracks actual speed so warmup & cooldown
   // produce a natural fade-in / fade-out of the head bob
   const actuallyMoved = (player.x !== prevX) || (player.z !== prevZ);
-  const speedFrac = Math.min(1, Math.abs(walkVel) / player.speed);
+  const speedFrac = Math.min(1, totalSpeed / player.speed);
   if (actuallyMoved) bobPhase += dt * 9.5;
   const bobTarget = actuallyMoved ? 0.055 * speedFrac : 0;
   bobAmp += (bobTarget - bobAmp) * Math.min(1, dt * 7);
@@ -1091,10 +1185,175 @@ window.addEventListener('keyup', e => { keys[e.key] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
 // reliable touch-device detection (iPad Safari/iPadOS often reports as desktop,
-// so we rely on actual touch capability rather than the hover/pointer media query)
-if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+// so we rely on actual touch capability rather than the hover/pointer media query).
+// `?touch=1` (or `?controls=touch`) forces the touch UI on desktop for testing.
+const _params = new URLSearchParams(window.location.search);
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0
+    || _params.has('touch') || _params.get('controls') === 'touch') {
   document.body.classList.add('touch-device');
 }
+
+// --- Roblox-style dual-thumb controls: virtual joystick + drag-to-look ---
+let stickMode = true;  // default for touch devices is joystick + look-drag
+function setStickMode(on) {
+  stickMode = on;
+  document.body.classList.toggle('controls-stick', on);
+  document.body.classList.toggle('controls-pad', !on);
+  const tog = document.getElementById('ctrlToggle');
+  if (tog) tog.textContent = on ? '⇄ Buttons' : '⇄ Joystick';
+}
+setStickMode(true);  // initial classes regardless of touch capability
+
+document.getElementById('ctrlToggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setStickMode(!stickMode);
+});
+
+// joystick widget
+const joyEl   = document.getElementById('joystick');
+const stickEl = document.getElementById('joystickStick');
+const lookEl  = document.getElementById('lookZone');
+
+function moveStick(dx, dy) { stickEl.style.transform = `translate(${dx}px, ${dy}px)`; }
+function clampJoy(dx, dy) {
+  const len = Math.hypot(dx, dy);
+  if (len <= JOY_RADIUS) return { dx, dy };
+  return { dx: dx * JOY_RADIUS / len, dy: dy * JOY_RADIUS / len };
+}
+
+joyEl.addEventListener('touchstart', (e) => {
+  if (joyState.active) return;
+  const t = e.changedTouches[0];
+  const rect = joyEl.getBoundingClientRect();
+  joyState.active = true;
+  joyState.id = t.identifier;
+  joyState.cx = rect.left + rect.width / 2;
+  joyState.cy = rect.top  + rect.height / 2;
+  // also follow finger from initial contact point so it doesn't have to be dead-centre
+  const c = clampJoy(t.clientX - joyState.cx, t.clientY - joyState.cy);
+  joyState.dx = c.dx; joyState.dy = c.dy;
+  stickEl.style.transition = 'none';
+  moveStick(c.dx, c.dy);
+  e.preventDefault();
+}, { passive: false });
+
+joyEl.addEventListener('touchmove', (e) => {
+  for (const t of e.changedTouches) {
+    if (t.identifier !== joyState.id) continue;
+    const c = clampJoy(t.clientX - joyState.cx, t.clientY - joyState.cy);
+    joyState.dx = c.dx; joyState.dy = c.dy;
+    moveStick(c.dx, c.dy);
+    e.preventDefault();
+  }
+}, { passive: false });
+
+function joyEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier !== joyState.id) continue;
+    joyState.active = false;
+    joyState.id = -1;
+    joyState.dx = 0; joyState.dy = 0;
+    stickEl.style.transition = 'transform 0.15s ease';
+    moveStick(0, 0);
+    e.preventDefault();
+  }
+}
+joyEl.addEventListener('touchend',    joyEnd, { passive: false });
+joyEl.addEventListener('touchcancel', joyEnd, { passive: false });
+
+// look zone — drag anywhere on the right half of the screen to rotate the camera
+lookEl.addEventListener('touchstart', (e) => {
+  // a tap on the look zone while a clue is up just dismisses it
+  if (cluePhase) { tryHideOverlay(); e.preventDefault(); return; }
+  if (lookState.active) return;
+  const t = e.changedTouches[0];
+  lookState.active = true;
+  lookState.id = t.identifier;
+  lookState.lastX = t.clientX;
+  e.preventDefault();
+}, { passive: false });
+
+lookEl.addEventListener('touchmove', (e) => {
+  if (cluePhase) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier !== lookState.id) continue;
+    const dx = t.clientX - lookState.lastX;
+    // drag right -> camera turns right (yaw decreases in our coord system)
+    player.yaw -= dx * TOUCH_LOOK_SENS;
+    lookState.lastX = t.clientX;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+function lookEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier !== lookState.id) continue;
+    lookState.active = false;
+    lookState.id = -1;
+    e.preventDefault();
+  }
+}
+lookEl.addEventListener('touchend',    lookEnd, { passive: false });
+lookEl.addEventListener('touchcancel', lookEnd, { passive: false });
+
+// --- mouse fallback so the touch UI is testable on desktop browsers ---
+// (touch events don't fire from a regular mouse — these handlers mirror the
+//  touch ones using mousedown/move/up; one mouse, so only one drag at a time)
+let joyMouseDown = false;
+joyEl.addEventListener('mousedown', (e) => {
+  if (joyState.active) return;
+  joyMouseDown = true;
+  const rect = joyEl.getBoundingClientRect();
+  joyState.active = true;
+  joyState.id = -2;          // sentinel; mouse has no Touch.identifier
+  joyState.cx = rect.left + rect.width / 2;
+  joyState.cy = rect.top  + rect.height / 2;
+  const c = clampJoy(e.clientX - joyState.cx, e.clientY - joyState.cy);
+  joyState.dx = c.dx; joyState.dy = c.dy;
+  stickEl.style.transition = 'none';
+  moveStick(c.dx, c.dy);
+  e.preventDefault();
+});
+
+let lookMouseDown = false;
+lookEl.addEventListener('mousedown', (e) => {
+  if (cluePhase) { tryHideOverlay(); return; }
+  if (lookState.active) return;
+  lookMouseDown = true;
+  lookState.active = true;
+  lookState.id = -2;
+  lookState.lastX = e.clientX;
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (joyMouseDown) {
+    const c = clampJoy(e.clientX - joyState.cx, e.clientY - joyState.cy);
+    joyState.dx = c.dx; joyState.dy = c.dy;
+    moveStick(c.dx, c.dy);
+  }
+  if (lookMouseDown && !cluePhase) {
+    const dx = e.clientX - lookState.lastX;
+    player.yaw -= dx * TOUCH_LOOK_SENS;
+    lookState.lastX = e.clientX;
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (joyMouseDown) {
+    joyMouseDown = false;
+    joyState.active = false;
+    joyState.id = -1;
+    joyState.dx = 0; joyState.dy = 0;
+    stickEl.style.transition = 'transform 0.15s ease';
+    moveStick(0, 0);
+  }
+  if (lookMouseDown) {
+    lookMouseDown = false;
+    lookState.active = false;
+    lookState.id = -1;
+  }
+});
 
 // touch buttons
 document.querySelectorAll('.touchpad-3d button').forEach(btn => {
