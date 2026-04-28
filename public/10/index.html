@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Great Goose Chase &mdash; The Hedge Labyrinth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #f4ead5;
+    --ink-dim: #c9bfa8;
+    --night: #0e1a2b;
+    --night-deep: #060b15;
+    --parchment: #efe3c4;
+    --moss: #2c4a3e;
+    --gold: #f5c44a;
+    --gold-glow: #ffe48a;
+    --rose: #e88a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%; overflow: hidden;
+    background: var(--night-deep); color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    user-select: none; -webkit-user-select: none;
+  }
+
+  /* Stars/atmosphere on intro & outro screens */
+  body { background:
+    radial-gradient(ellipse at 20% 10%, rgba(245,196,74,0.06), transparent 50%),
+    radial-gradient(ellipse at 80% 90%, rgba(232,138,138,0.05), transparent 50%),
+    radial-gradient(ellipse at 50% 50%, var(--night) 0%, var(--night-deep) 80%);
+  }
+
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .star {
+    position: absolute; width: 2px; height: 2px;
+    background: #fff; border-radius: 50%; opacity: 0.6;
+    animation: twinkle 4s ease-in-out infinite;
+  }
+  @keyframes twinkle { 0%,100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+
+  .screen {
+    position: fixed; inset: 0;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; z-index: 2; padding: 2rem;
+  }
+  .screen.active { display: flex; }
+
+  /* ----- Letter (intro/outro) ----- */
+  .letter {
+    background: var(--parchment); color: #2a1f10;
+    padding: 3rem 3.5rem;
+    max-width: 640px; width: 100%;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.6),
+      0 0 0 1px rgba(0,0,0,0.05),
+      inset 0 0 60px rgba(184,168,127,0.4);
+    border-radius: 2px; position: relative;
+    transform: rotate(-0.4deg);
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(184,168,127,0.08) 29px),
+      radial-gradient(ellipse at 30% 0%, rgba(184,168,127,0.4), transparent 60%);
+  }
+  .letter::before, .letter::after {
+    content: ''; position: absolute; width: 60px; height: 20px;
+    background: rgba(245,196,74,0.5); top: -10px;
+    transform: rotate(-3deg); box-shadow: inset 0 0 8px rgba(0,0,0,0.2);
+  }
+  .letter::before { left: 30px; }
+  .letter::after  { right: 30px; transform: rotate(4deg); }
+  .letter h1 {
+    font-style: italic; font-weight: 600; font-size: 2.2rem;
+    margin-bottom: 0.3rem; text-align: center; letter-spacing: 0.02em;
+  }
+  .letter .subtitle {
+    text-align: center; font-style: italic; color: #6b5630;
+    margin-bottom: 1.4rem; font-size: 1.05rem;
+  }
+  .letter .seal {
+    text-align: center; font-size: 3rem; margin-bottom: 0.4rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+  .letter p { font-size: 1.13rem; line-height: 1.55; margin-bottom: 0.85rem; }
+  .letter .signoff {
+    margin-top: 1.4rem; font-style: italic; text-align: right;
+  }
+  .letter .signoff .name {
+    font-family: 'Special Elite', cursive;
+    font-size: 1.6rem; display: block; margin-top: 0.2rem;
+    transform: rotate(-2deg); color: #1a1208;
+  }
+
+  .begin-btn {
+    margin-top: 1.6rem;
+    background: var(--night-deep); color: var(--gold-glow);
+    border: 1px solid var(--gold);
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 1.3rem; padding: 0.9rem 2.4rem; cursor: pointer;
+    letter-spacing: 0.08em; transition: all 0.2s ease;
+    box-shadow: 0 0 30px rgba(245,196,74,0.2);
+  }
+  .begin-btn:hover {
+    background: var(--gold); color: var(--night-deep);
+    box-shadow: 0 0 50px rgba(245,196,74,0.6);
+  }
+
+  /* ----- 3D viewport ----- */
+  #maze3d {
+    align-items: stretch; justify-content: stretch;
+    padding: 0;
+  }
+  #viewport {
+    position: absolute; inset: 0; z-index: 1;
+  }
+  #viewport canvas { display: block; width: 100%; height: 100%; }
+
+  /* HUD overlay */
+  .hud-3d {
+    position: absolute; top: 1.2rem; left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    background: rgba(6,11,21,0.6);
+    border: 1px solid rgba(245,196,74,0.3);
+    padding: 0.55rem 1.2rem;
+    color: var(--gold-glow);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.15rem; letter-spacing: 0.08em;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+  .hud-3d .keys {
+    display: block; margin-top: 0.2rem;
+    color: var(--ink-dim); font-style: italic;
+    font-size: 0.85rem; letter-spacing: 0; text-align: center;
+    opacity: 0.8;
+  }
+
+  /* compass */
+  .compass {
+    position: absolute; top: 1.2rem; right: 1.2rem;
+    width: 60px; height: 60px;
+    background: rgba(6,11,21,0.6);
+    border: 1px solid rgba(245,196,74,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 5; pointer-events: none;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .compass .needle {
+    width: 4px; height: 30px;
+    background: linear-gradient(to top, transparent 50%, var(--gold-glow) 50%);
+    transform-origin: center bottom 1px;
+    position: relative;
+  }
+  .compass .needle::before {
+    content: 'N'; position: absolute; top: -16px; left: 50%;
+    transform: translateX(-50%); color: var(--gold-glow);
+    font-size: 0.7rem; font-weight: 600;
+  }
+
+  /* on-screen touch pad */
+  .touchpad-3d {
+    position: absolute; bottom: 1.5rem; left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    grid-template-columns: repeat(3, 64px);
+    grid-template-rows: repeat(2, 64px);
+    gap: 8px; z-index: 5;
+  }
+  .touchpad-3d button {
+    background: rgba(6,11,21,0.7);
+    border: 1px solid rgba(245,196,74,0.4);
+    color: var(--gold-glow);
+    font-size: 1.6rem; border-radius: 6px;
+    cursor: pointer; touch-action: manipulation;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .touchpad-3d button:active { background: rgba(245,196,74,0.3); }
+  .touchpad-3d .fwd  { grid-column: 2; grid-row: 1; }
+  .touchpad-3d .left { grid-column: 1; grid-row: 2; }
+  .touchpad-3d .back { grid-column: 2; grid-row: 2; }
+  .touchpad-3d .right{ grid-column: 3; grid-row: 2; }
+
+  /* shown when JS detects a touch device (more reliable than media query for iPad) */
+  body.touch-device .touchpad-3d { display: grid; }
+  body.touch-device .hud-3d .keys { display: none; }
+  /* enlarge the touchpad on tablets for fingers */
+  @media (min-width: 600px) {
+    body.touch-device .touchpad-3d {
+      grid-template-columns: repeat(3, 84px);
+      grid-template-rows: repeat(2, 84px);
+      gap: 12px; bottom: 2.2rem;
+    }
+    body.touch-device .touchpad-3d button { font-size: 2rem; }
+  }
+
+  /* ----- Clue overlay ----- */
+  .clue-overlay {
+    position: fixed; inset: 0;
+    background: rgba(6,11,21,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 50;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .clue-overlay.active { display: flex; animation: fadein 0.4s ease; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  .clue-card {
+    background: var(--parchment); color: #2a1f10;
+    padding: 2.4rem 3rem; max-width: 520px; width: 90%;
+    border-radius: 2px; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    transform: rotate(0.6deg); position: relative;
+    animation: dropin 0.5s cubic-bezier(.2,1.3,.4,1);
+  }
+  @keyframes dropin {
+    from { transform: translateY(-40px) rotate(2deg); opacity: 0; }
+    to   { transform: translateY(0) rotate(0.6deg); opacity: 1; }
+  }
+  .clue-card .feather-mark { text-align: center; font-size: 2.2rem; margin-bottom: 0.5rem; }
+  .clue-card h2 { font-style: italic; font-weight: 600; font-size: 1.7rem; text-align: center; margin-bottom: 1rem; }
+  .clue-card .clue-body {
+    font-size: 1.2rem; line-height: 1.5;
+    text-align: center; font-style: italic; margin-bottom: 1rem;
+  }
+  .clue-card .signoff {
+    text-align: right; font-family: 'Special Elite', cursive;
+    margin-top: 1rem; color: #6b5630;
+  }
+  .clue-card .continue {
+    margin-top: 1.4rem; text-align: center; color: #6b5630;
+    font-size: 0.95rem; font-style: italic;
+  }
+
+  /* loading state */
+  #loading {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 1rem;
+    color: var(--gold-glow); z-index: 100;
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 1.4rem;
+  }
+  #loading .dot { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  @media (max-width: 720px) {
+    .letter { padding: 2rem 1.6rem; }
+    .letter h1 { font-size: 1.7rem; }
+    .letter p { font-size: 1rem; }
+  }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+<div id="loading"><span class="dot">🪿</span> The Goose is preparing the labyrinth…</div>
+
+<!-- ===================== INTRO ===================== -->
+<section class="screen active" id="intro">
+  <div class="letter">
+    <div class="seal">🪿</div>
+    <h1>The Hedge Labyrinth</h1>
+    <div class="subtitle">a deeper Goose Chase, for Niamh aged ten</div>
+
+    <p>You found your way through the parchment maze. Well done. But did you really think I would stop there?</p>
+    <p>I have grown a hedge. A real one. Tall as a kitchen, twice as twisty, and full of the kind of dark corners I am rather fond of. Three feathers wait for you in its corridors, glowing in the dark.</p>
+    <p>If you have a keyboard: walk forward with the <strong>up arrow</strong>, back with <strong>down</strong>, and turn with <strong>left</strong> and <strong>right</strong>. If you are on an iPad or a phone: four glowing buttons will appear at the bottom of the screen — <strong>↑</strong> to walk, <strong>↓</strong> to back up, <strong>↺ ↻</strong> to turn. Tap and hold to keep moving. The lantern stays with you — but only just.</p>
+    <p>Find every feather. Then find me at the heart of the maze.</p>
+    <div class="signoff">
+      Honk softly,
+      <span class="name">The Goose</span>
+    </div>
+  </div>
+  <button class="begin-btn" id="beginBtn">Step into the Hedges →</button>
+</section>
+
+<!-- ===================== 3D MAZE ===================== -->
+<section class="screen" id="maze3d">
+  <div id="viewport"></div>
+  <div class="hud-3d">
+    <span id="featherCount">🪶 0 / 3</span>
+    <span class="keys">↑ walk · ↓ back · ← → turn</span>
+  </div>
+  <div class="compass"><div class="needle" id="needle"></div></div>
+  <div class="touchpad-3d">
+    <button class="fwd"   data-dir="fwd">↑</button>
+    <button class="left"  data-dir="left">↺</button>
+    <button class="back"  data-dir="back">↓</button>
+    <button class="right" data-dir="right">↻</button>
+  </div>
+</section>
+
+<!-- ===================== CLUE OVERLAY ===================== -->
+<div class="clue-overlay" id="clueOverlay">
+  <div class="clue-card">
+    <div class="feather-mark">🪶</div>
+    <h2 id="clueTitle">A Feather, A Clue</h2>
+    <div class="clue-body" id="clueBody"></div>
+    <div class="signoff">— The Goose</div>
+    <div class="continue">(press any key, or tap, to continue)</div>
+  </div>
+</div>
+
+<!-- ===================== OUTRO ===================== -->
+<section class="screen" id="outro">
+  <div class="letter">
+    <div class="seal">🪿✨🪶</div>
+    <h1>You found me at the centre.</h1>
+    <p>I always knew you would. Three feathers gathered, one labyrinth defeated, ten years celebrated. You are quite the chaser, Niamh.</p>
+    <p>But the real Goose Chase, of course, takes place somewhere off this screen. Look up from your device. Listen for honking. The next clue is waiting where you least expect it.</p>
+    <p><em>(Dad: edit me to point Niamh to the first real-world hiding place.)</em></p>
+    <div class="signoff">
+      With great honking affection,
+      <span class="name">The Goose</span>
+    </div>
+  </div>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   EDIT THESE: clues The Goose has hidden in the hedge maze.
+   ============================================================ */
+const CLUES = [
+  { title: "The First Feather",
+    body: "Where the kettle sings its quiet song, and mugs await their morning throng — lift the one that bears your name. Beneath it sleeps the second game." },
+  { title: "The Second Feather",
+    body: "Books I love and books I keep, on shelves where dusty stories sleep — count to ten, then look behind. A small surprise is yours to find." },
+  { title: "The Third Feather",
+    body: "The final clue is yours alone — go where you rest your sleepy head. Lift the corner of your bed, and there the goose has gently flown." }
+];
+
+/* ============================================================
+   MAZE LAYOUT
+   # = hedge, . = path, S = start, F = feather, G = goose
+   ============================================================ */
+const MAZE = [
+  "###############",
+  "#S....#......F#",
+  "#.###.#.#####.#",
+  "#.#.#...#...#.#",
+  "#.#.###.#.#.#.#",
+  "#...#...#.#...#",
+  "#.#.#.###.###.#",
+  "#F#.#.....#.#.#",
+  "#.#.#######.#.#",
+  "#.#.........#.#",
+  "#.###########.#",
+  "#......F.....G#",
+  "###############"
+];
+
+/* ============================================================ */
+
+const ROWS = MAZE.length;
+const COLS = MAZE[0].length;
+
+// world units per maze cell — wider halls feel less claustrophobic
+const CELL = 1.6;
+// helper: grid (col,row) -> world (x,z) at cell centre
+const wx = (gx) => (gx + 0.5) * CELL;
+const wz = (gy) => (gy + 0.5) * CELL;
+
+// --- background stars (intro/outro DOM) ---
+const starsLayer = document.getElementById('stars');
+for (let i = 0; i < 50; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  s.style.left = Math.random() * 100 + '%';
+  s.style.top = Math.random() * 100 + '%';
+  s.style.animationDelay = (Math.random() * 4) + 's';
+  s.style.opacity = (Math.random() * 0.7 + 0.2).toFixed(2);
+  starsLayer.appendChild(s);
+}
+
+// --- procedurally-generated textures ---
+function makeHedgeTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  // base
+  ctx.fillStyle = '#1d3a26';
+  ctx.fillRect(0, 0, 256, 256);
+  // leafy speckles, multiple sizes
+  for (let i = 0; i < 4500; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const r = Math.random() * 4 + 0.6;
+    const t = Math.random();
+    if      (t > 0.85) ctx.fillStyle = '#4a7d54';
+    else if (t > 0.55) ctx.fillStyle = '#2d5a38';
+    else if (t > 0.25) ctx.fillStyle = '#1a3320';
+    else               ctx.fillStyle = '#0a1a10';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // a few brighter highlights for moonlight catch
+  for (let i = 0; i < 80; i++) {
+    ctx.fillStyle = 'rgba(180,210,160,0.18)';
+    ctx.beginPath();
+    ctx.arc(Math.random()*256, Math.random()*256, Math.random()*3+1, 0, Math.PI*2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeFloorTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  // dirt-and-stone base
+  ctx.fillStyle = '#3a2f24';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 3000; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256;
+    const r = Math.random() * 3 + 0.5;
+    const t = Math.random();
+    if      (t > 0.9) ctx.fillStyle = '#776655';
+    else if (t > 0.6) ctx.fillStyle = '#4a3d2e';
+    else if (t > 0.3) ctx.fillStyle = '#2a2118';
+    else              ctx.fillStyle = '#1a140e';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // a scattering of small pale stones
+  for (let i = 0; i < 100; i++) {
+    ctx.fillStyle = 'rgba(200,190,170,0.4)';
+    ctx.beginPath();
+    ctx.arc(Math.random()*256, Math.random()*256, Math.random()*2+0.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeEmojiTexture(emoji, size = 256) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.font = (size * 0.78) + 'px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // soft glow halo
+  ctx.shadowColor = 'rgba(255,228,138,0.9)';
+  ctx.shadowBlur = size * 0.18;
+  ctx.fillText(emoji, size / 2, size / 2 + size * 0.04);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// --- Three.js scene ---
+let scene, camera, renderer, clock;
+const walls = []; // for visual tweaks; collision uses MAZE grid directly
+const featherSprites = []; // {sprite, x, z, idx, collected}
+let gooseSprite = null;
+let gooseGoal = null; // {x, z}
+let collected = 0;
+let totalFeathers = 0;
+
+const player = {
+  x: wx(1), z: wz(1), // world coords (cell centres) — overwritten on init from maze 'S'
+  yaw: 0,
+  speed: 3.4 * CELL,   // scale walking speed with cell size so traversal feels constant
+  turnSpeed: 2.4
+};
+
+const keys = {};
+let cluePhase = false;
+let started = false;
+
+function init3D() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05080f);
+  // fog density retuned for the larger world so visibility stays ~3-4 cells
+  scene.fog = new THREE.FogExp2(0x0a1a2a, 0.13);
+
+  camera = new THREE.PerspectiveCamera(72, 1, 0.05, 80);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  document.getElementById('viewport').appendChild(renderer.domElement);
+
+  // floor
+  const floorTex = makeFloorTexture();
+  floorTex.repeat.set(COLS, ROWS);
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(COLS * CELL, ROWS * CELL),
+    new THREE.MeshStandardMaterial({ map: floorTex, roughness: 1.0 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set((COLS * CELL) / 2, 0, (ROWS * CELL) / 2);
+  scene.add(floor);
+
+  // hedge walls
+  const hedgeTex = makeHedgeTexture();
+  const wallMat = new THREE.MeshStandardMaterial({
+    map: hedgeTex, roughness: 0.95, color: 0xffffff
+  });
+
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const ch = MAZE[y][x];
+      if (ch === '#') {
+        const h = 1.5 + Math.random() * 0.35;     // shorter walls — friendlier hedge
+        const w = CELL + Math.random() * 0.06;
+        const d = CELL + Math.random() * 0.06;
+        const m = new THREE.Mesh(
+          new THREE.BoxGeometry(w, h, d),
+          wallMat
+        );
+        m.position.set(
+          wx(x) + (Math.random() - 0.5) * 0.05,
+          h / 2,
+          wz(y) + (Math.random() - 0.5) * 0.05
+        );
+        scene.add(m);
+        walls.push(m);
+      } else if (ch === 'S') {
+        player.x = wx(x);
+        player.z = wz(y);
+      } else if (ch === 'F') {
+        addFeather(wx(x), wz(y), totalFeathers++);
+      } else if (ch === 'G') {
+        addGoose(wx(x), wz(y));
+        gooseGoal = { x: wx(x), z: wz(y) };
+      }
+    }
+  }
+
+  // lights
+  scene.add(new THREE.AmbientLight(0x334466, 0.45));
+  const moon = new THREE.DirectionalLight(0xb0c4ff, 0.4);
+  moon.position.set(8, 14, 4);
+  scene.add(moon);
+
+  // lantern attached to camera (range scaled with cell size)
+  const lantern = new THREE.PointLight(0xffd28c, 1.7, 7 * CELL, 1.6);
+  lantern.position.set(0, 0.3, 0);
+  camera.add(lantern);
+  scene.add(camera);
+
+  // initial camera placement — eye height a touch lower so walls feel taller-but-friendly
+  camera.position.set(player.x, 1.0, player.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = player.yaw;
+
+  clock = new THREE.Clock();
+  resize();
+  window.addEventListener('resize', resize);
+}
+
+function addFeather(x, z, idx) {
+  const tex = makeEmojiTexture('🪶', 256);
+  const mat = new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthWrite: false,
+    color: 0xffffff
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.85, 0.85, 0.85);
+  sprite.position.set(x, 0.95, z);
+  scene.add(sprite);
+  // small point light to make it shimmer
+  const glow = new THREE.PointLight(0xffd060, 0.7, 2.6, 2);
+  glow.position.set(x, 0.95, z);
+  scene.add(glow);
+  featherSprites.push({ sprite, glow, x, z, idx, collected: false, phase: Math.random() * Math.PI * 2 });
+}
+
+function addGoose(x, z) {
+  const tex = makeEmojiTexture('🪿', 320);
+  const mat = new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthWrite: false,
+    color: 0xffffff
+  });
+  gooseSprite = new THREE.Sprite(mat);
+  gooseSprite.scale.set(1.3, 1.3, 1.3);
+  gooseSprite.position.set(x, 1.0, z);
+  scene.add(gooseSprite);
+  const glow = new THREE.PointLight(0xfff0c0, 1.1, 5, 2);
+  glow.position.set(x, 1.2, z);
+  scene.add(glow);
+}
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+function isWall(x, z) {
+  const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+  if (cx < 0 || cz < 0 || cx >= COLS || cz >= ROWS) return true;
+  return MAZE[cz][cx] === '#';
+}
+
+function hitsWall(x, z, r = 0.32) {
+  // sample a few points around the player circle (player radius in world units)
+  return (
+    isWall(x + r, z) || isWall(x - r, z) ||
+    isWall(x, z + r) || isWall(x, z - r) ||
+    isWall(x + r * 0.7, z + r * 0.7) ||
+    isWall(x - r * 0.7, z + r * 0.7) ||
+    isWall(x + r * 0.7, z - r * 0.7) ||
+    isWall(x - r * 0.7, z - r * 0.7)
+  );
+}
+
+function updatePlayer(dt) {
+  if (cluePhase) return;
+
+  // turn
+  let turn = 0;
+  if (keys['ArrowLeft']  || keys['a'] || keys['A']) turn += 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) turn -= 1;
+  player.yaw += turn * player.turnSpeed * dt;
+
+  // forward/back
+  let move = 0;
+  if (keys['ArrowUp']   || keys['w'] || keys['W']) move += 1;
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) move -= 1;
+
+  if (move !== 0) {
+    const dx = -Math.sin(player.yaw) * move * player.speed * dt;
+    const dz = -Math.cos(player.yaw) * move * player.speed * dt;
+    if (!hitsWall(player.x + dx, player.z)) player.x += dx;
+    if (!hitsWall(player.x, player.z + dz)) player.z += dz;
+  }
+
+  camera.position.set(player.x, 1.0, player.z);
+  camera.rotation.y = player.yaw;
+
+  // compass needle
+  const needle = document.getElementById('needle');
+  if (needle) needle.style.transform = `rotate(${player.yaw}rad)`;
+
+  // pickups (threshold ~half a cell)
+  const pickupR2 = (0.55 * CELL) * (0.55 * CELL);
+  for (const f of featherSprites) {
+    if (f.collected) continue;
+    const dx = f.x - player.x, dz = f.z - player.z;
+    if (dx * dx + dz * dz < pickupR2) {
+      f.collected = true;
+      f.sprite.visible = false;
+      f.glow.visible = false;
+      collected++;
+      updateHud();
+      showClue(f.idx);
+      return;
+    }
+  }
+
+  // goose goal (threshold ~3/4 of a cell)
+  if (gooseGoal) {
+    const dx = gooseGoal.x - player.x, dz = gooseGoal.z - player.z;
+    const goalR2 = (0.75 * CELL) * (0.75 * CELL);
+    if (dx * dx + dz * dz < goalR2) {
+      if (collected >= totalFeathers) {
+        endGame();
+      } else {
+        const remaining = totalFeathers - collected;
+        showOverlay(
+          'Not yet, dear Niamh.',
+          `You still have ${remaining} feather${remaining === 1 ? '' : 's'} to find. The Goose does not reward shortcuts.`
+        );
+        // bump the player back a bit so they don't trigger every frame
+        player.x -= -Math.sin(player.yaw) * 0.5 * CELL;
+        player.z -= -Math.cos(player.yaw) * 0.5 * CELL;
+      }
+    }
+  }
+}
+
+function animateScene(dt, t) {
+  for (const f of featherSprites) {
+    if (f.collected) continue;
+    f.sprite.position.y = 0.95 + Math.sin(t * 2.2 + f.phase) * 0.13;
+    f.sprite.material.rotation = Math.sin(t * 1.4 + f.phase) * 0.4;
+  }
+  if (gooseSprite) {
+    gooseSprite.position.y = 1.0 + Math.sin(t * 1.3) * 0.06;
+  }
+}
+
+function updateHud() {
+  document.getElementById('featherCount').textContent =
+    `🪶 ${collected} / ${totalFeathers}`;
+}
+
+function showClue(idx) {
+  const clue = CLUES[idx] || {
+    title: "A Curious Feather",
+    body: "The Goose has clearly run out of paper. Ask Dad."
+  };
+  showOverlay(clue.title, clue.body);
+}
+function showOverlay(title, body) {
+  document.getElementById('clueTitle').textContent = title;
+  document.getElementById('clueBody').textContent = body;
+  document.getElementById('clueOverlay').classList.add('active');
+  cluePhase = true;
+}
+function hideOverlay() {
+  document.getElementById('clueOverlay').classList.remove('active');
+  cluePhase = false;
+}
+
+function endGame() {
+  document.getElementById('maze3d').classList.remove('active');
+  document.getElementById('outro').classList.add('active');
+  // stop rendering loop by leaving cluePhase locked? Actually just leave; fine.
+}
+
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t  = clock.getElapsedTime();
+  updatePlayer(dt);
+  animateScene(dt, t);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+// --- input ---
+window.addEventListener('keydown', e => {
+  if (cluePhase) {
+    hideOverlay();
+    e.preventDefault();
+    return;
+  }
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+// reliable touch-device detection (iPad Safari/iPadOS often reports as desktop,
+// so we rely on actual touch capability rather than the hover/pointer media query)
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+  document.body.classList.add('touch-device');
+}
+
+// touch buttons
+document.querySelectorAll('.touchpad-3d button').forEach(btn => {
+  const dirMap = { fwd: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
+  const k = dirMap[btn.dataset.dir];
+  const on  = (e) => { e.preventDefault(); if (cluePhase) { hideOverlay(); return; } keys[k] = true; };
+  const off = (e) => { e.preventDefault(); keys[k] = false; };
+  btn.addEventListener('touchstart',  on,  { passive: false });
+  btn.addEventListener('touchend',    off, { passive: false });
+  btn.addEventListener('touchcancel', off, { passive: false });
+  btn.addEventListener('mousedown',   on);
+  btn.addEventListener('mouseup',     off);
+  btn.addEventListener('mouseleave',  off);
+});
+
+document.getElementById('clueOverlay').addEventListener('click', hideOverlay);
+document.getElementById('clueOverlay').addEventListener('touchstart', (e) => {
+  e.preventDefault(); hideOverlay();
+}, { passive: false });
+
+// begin
+document.getElementById('beginBtn').addEventListener('click', () => {
+  if (!started) {
+    started = true;
+    init3D();
+    updateHud();
+    requestAnimationFrame(loop);
+  }
+  document.getElementById('intro').classList.remove('active');
+  document.getElementById('maze3d').classList.add('active');
+  document.getElementById('loading').style.display = 'none';
+  // give renderer a tick to size correctly
+  requestAnimationFrame(resize);
+});
+
+// hide loading once script is parsed
+document.getElementById('loading').style.display = 'none';
+</script>
+</body>
+</html>
