@@ -288,10 +288,17 @@
     to   { transform: translateY(0) rotate(0.6deg); opacity: 1; }
   }
   .clue-card .balloon-mark { text-align: center; font-size: 2.2rem; margin-bottom: 0.5rem; }
-  .clue-card h2 { font-style: italic; font-weight: 600; font-size: 1.7rem; text-align: center; margin-bottom: 1rem; }
+  .clue-card h2 {
+    font-style: italic; font-weight: 500;
+    font-size: 0.95rem;
+    text-transform: uppercase; letter-spacing: 0.18em;
+    color: #6b5630;
+    text-align: center; margin-bottom: 0.8rem;
+  }
   .clue-card .clue-body {
-    font-size: 1.2rem; line-height: 1.5;
+    font-size: 1.7rem; line-height: 1.35;
     text-align: center; font-style: italic; margin-bottom: 1rem;
+    color: #2a1f10;
   }
   .clue-card .signoff {
     text-align: right; font-family: 'Special Elite', cursive;
@@ -314,10 +321,23 @@
   #loading .dot { animation: pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
 
+  /* tablet & phone — keep the letter compact so the begin button stays on-screen */
+  @media (max-width: 1100px) {
+    .screen { padding: 1.2rem; }
+    .letter { padding: 2rem 1.8rem; }
+    .letter h1 { font-size: 1.85rem; }
+    .letter p {
+      font-size: 1.02rem; line-height: 1.45;
+      margin-bottom: 0.7rem;
+    }
+    .letter .signoff { margin-top: 0.9rem; }
+    .begin-btn { margin-top: 1.1rem; font-size: 1.2rem; padding: 0.7rem 2rem; }
+    .clue-card .clue-body { font-size: 1.45rem; }
+  }
   @media (max-width: 720px) {
-    .letter { padding: 2rem 1.6rem; }
-    .letter h1 { font-size: 1.7rem; }
-    .letter p { font-size: 1rem; }
+    .letter { padding: 1.7rem 1.4rem; }
+    .letter h1 { font-size: 1.6rem; }
+    .letter p { font-size: 0.98rem; }
   }
 </style>
 
@@ -341,10 +361,10 @@
     <h1>The Hedge Labyrinth</h1>
     <div class="subtitle">a Goose Chase, for Niamh aged ten</div>
 
-    <p>Today you turn <em>ten</em>. I have spent the better part of the year making a list of all the things I love most about you — and rather than scribbling them on a card, I have tied each one to a balloon and let them loose in my labyrinth.</p>
-    <p>There are <strong>ten</strong> balloons. (Of course there are ten. You are ten.) Find every one. Read what I have written. They are all true.</p>
-    <p>If you have a keyboard: walk forward with the <strong>up arrow</strong>, back with <strong>down</strong>, and turn with <strong>left</strong> and <strong>right</strong>. If you are on an iPad or a phone: a <strong>joystick</strong> appears at the bottom-left — drag with your left thumb to walk and side-step. Drag anywhere on the <strong>right side</strong> of the screen with your right thumb to look around. (If you'd rather have buttons, tap "⇄ Buttons" in the top-left.)</p>
-    <p>And once every balloon is yours, come find me at the heart of the maze.</p>
+    <p>Today you turn <em>ten</em>. I have spent the year making a list of every wonderful thing about you — and tied each one to a balloon, let loose in my labyrinth.</p>
+    <p>There are <strong>ten</strong>. (Of course there are. You are ten.) Find every one. Read what I have written. They are all true.</p>
+    <p>On an iPad: drag the <strong>joystick</strong> at bottom-left to walk; drag the <strong>right side</strong> of the screen to look. On a keyboard: arrows or WASD.</p>
+    <p>Once every balloon is yours, find me at the heart of the maze.</p>
     <div class="signoff">
       Honk softly,
       <span class="name">The Goose</span>
@@ -595,10 +615,6 @@ const CAGE_RISE = 6;             // world units the cage rises before vanishing
 let collected = 0;
 let totalBalloons = 0;
 
-// debug: picture-load diagnostic so we can see iPad failures on-device
-let picsTotal = 0, picsLoaded = 0, picsFailed = 0;
-let firstPicError = '';
-
 // cheerful balloon palette — picked in order so adjacent balloons differ
 const BALLOON_COLORS = [
   0xff5b6b, 0xffb35a, 0xfde36b, 0x6dd07a, 0x5ec3e8,
@@ -783,8 +799,6 @@ function placePictures() {
     used.push(slot);
     queue.push({ filename: PICTURES[queue.length], slot });
   }
-  picsTotal = queue.length;
-  updateHud();
 
   // Load them sequentially. iOS Safari drops textures when too many large
   // image decodes happen at once; doing them one-at-a-time avoids that and
@@ -795,20 +809,11 @@ function placePictures() {
     const url = URL_BASE + 'img/' + encodeURIComponent(filename);
     loadDownscaledTexture(url, 1024,
       (texture) => {
-        try {
-          addFramedPicture(texture, slot);
-          picsLoaded++;
-          updateHud();
-        } catch (err) {
-          picsFailed++;
-          updateHud();
-          console.error('picture mesh failed:', filename, err);
-        }
+        try { addFramedPicture(texture, slot); }
+        catch (err) { console.error('picture mesh failed:', filename, err); }
         loadNext(i + 1);
       },
       (err) => {
-        picsFailed++;
-        updateHud();
         console.warn('picture failed to load:', filename, err);
         loadNext(i + 1);
       }
@@ -818,12 +823,9 @@ function placePictures() {
 }
 
 // Load an image, downscale to fit within `maxDim`, and turn it into a CanvasTexture.
-// Uses fetch() so we can surface the HTTP status when something goes wrong on iPad.
+// Uses fetch() so the error path can carry the HTTP status if something goes wrong.
 function loadDownscaledTexture(url, maxDim, onLoad, onError) {
-  const fail = (msg) => {
-    if (!firstPicError) firstPicError = msg;
-    if (onError) onError(new Error(msg));
-  };
+  const fail = (msg) => { if (onError) onError(new Error(msg)); };
 
   fetch(url)
     .then((r) => {
@@ -1199,16 +1201,8 @@ function animateScene(dt, t) {
 }
 
 function updateHud() {
-  let txt = `🎈 ${collected} / ${totalBalloons}`;
-  // diagnostic readout while we're chasing the iPad picture issue
-  if (picsTotal > 0 && (picsLoaded + picsFailed) < picsTotal) {
-    txt += `   🎨 ${picsLoaded}/${picsTotal}`;
-  } else if (picsFailed > 0) {
-    txt += `   🎨 ${picsLoaded}/${picsTotal} fail: ${firstPicError.slice(0, 40)}`;
-  } else if (picsLoaded > 0) {
-    txt += `   🎨 ${picsLoaded}`;
-  }
-  document.getElementById('balloonCount').textContent = txt;
+  document.getElementById('balloonCount').textContent =
+    `🎈 ${collected} / ${totalBalloons}`;
 }
 
 function showLove(idx) {
