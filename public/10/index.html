@@ -48,6 +48,8 @@
     flex-direction: column; z-index: 2; padding: 2rem;
   }
   .screen.active { display: flex; }
+  /* the whole intro screen is clickable to begin */
+  #intro { cursor: pointer; }
 
   /* ----- Letter (intro/outro) ----- */
   .letter {
@@ -219,7 +221,7 @@
     from { transform: translateY(-40px) rotate(2deg); opacity: 0; }
     to   { transform: translateY(0) rotate(0.6deg); opacity: 1; }
   }
-  .clue-card .feather-mark { text-align: center; font-size: 2.2rem; margin-bottom: 0.5rem; }
+  .clue-card .balloon-mark { text-align: center; font-size: 2.2rem; margin-bottom: 0.5rem; }
   .clue-card h2 { font-style: italic; font-weight: 600; font-size: 1.7rem; text-align: center; margin-bottom: 1rem; }
   .clue-card .clue-body {
     font-size: 1.2rem; line-height: 1.5;
@@ -271,12 +273,12 @@
   <div class="letter">
     <div class="seal">🪿</div>
     <h1>The Hedge Labyrinth</h1>
-    <div class="subtitle">a deeper Goose Chase, for Niamh aged ten</div>
+    <div class="subtitle">a Goose Chase, for Niamh aged ten</div>
 
-    <p>You found your way through the parchment maze. Well done. But did you really think I would stop there?</p>
-    <p>I have grown a hedge. A real one. Tall as a kitchen, twice as twisty, and full of the kind of dark corners I am rather fond of. Three feathers wait for you in its corridors, glowing in the dark.</p>
-    <p>If you have a keyboard: walk forward with the <strong>up arrow</strong>, back with <strong>down</strong>, and turn with <strong>left</strong> and <strong>right</strong>. If you are on an iPad or a phone: four glowing buttons will appear at the bottom of the screen — <strong>↑</strong> to walk, <strong>↓</strong> to back up, <strong>↺ ↻</strong> to turn. Tap and hold to keep moving. The lantern stays with you — but only just.</p>
-    <p>Find every feather. Then find me at the heart of the maze.</p>
+    <p>Today you turn <em>ten</em>. I have spent the better part of the year making a list of all the things I love most about you — and rather than scribbling them on a card, I have tied each one to a balloon and let them loose in my labyrinth.</p>
+    <p>There are <strong>ten</strong> balloons. (Of course there are ten. You are ten.) Find every one. Read what I have written. They are all true.</p>
+    <p>If you have a keyboard: walk forward with the <strong>up arrow</strong>, back with <strong>down</strong>, and turn with <strong>left</strong> and <strong>right</strong>. If you are on an iPad or a phone: four buttons will appear at the bottom of the screen — <strong>↑</strong> to walk, <strong>↓</strong> to back up, <strong>↺ ↻</strong> to turn. Tap and hold to keep moving.</p>
+    <p>And once every balloon is yours, come find me at the heart of the maze.</p>
     <div class="signoff">
       Honk softly,
       <span class="name">The Goose</span>
@@ -289,7 +291,7 @@
 <section class="screen" id="maze3d">
   <div id="viewport"></div>
   <div class="hud-3d">
-    <span id="featherCount">🪶 0 / 3</span>
+    <span id="balloonCount">🎈 0 / 10</span>
     <span class="keys">↑ walk · ↓ back · ← → turn</span>
   </div>
   <div class="compass"><div class="needle" id="needle"></div></div>
@@ -304,8 +306,8 @@
 <!-- ===================== CLUE OVERLAY ===================== -->
 <div class="clue-overlay" id="clueOverlay">
   <div class="clue-card">
-    <div class="feather-mark">🪶</div>
-    <h2 id="clueTitle">A Feather, A Clue</h2>
+    <div class="balloon-mark">🎈</div>
+    <h2 id="clueTitle">A Balloon!</h2>
     <div class="clue-body" id="clueBody"></div>
     <div class="signoff">— The Goose</div>
     <div class="continue">(press any key, or tap, to continue)</div>
@@ -317,7 +319,7 @@
   <div class="letter">
     <div class="seal">🪿✨🪶</div>
     <h1>You found me at the centre.</h1>
-    <p>I always knew you would. Three feathers gathered, one labyrinth defeated, ten years celebrated. You are quite the chaser, Niamh.</p>
+    <p>I always knew you would. Ten balloons popped, ten things I love about you read out loud, ten years celebrated. You are quite the chaser, Niamh.</p>
     <p>But the real Goose Chase, of course, takes place somewhere off this screen. Look up from your device. Listen for honking. The next clue is waiting where you least expect it.</p>
     <p><em>(Dad: edit me to point Niamh to the first real-world hiding place.)</em></p>
     <div class="signoff">
@@ -331,35 +333,65 @@
 import * as THREE from 'three';
 
 /* ============================================================
-   EDIT THESE: clues The Goose has hidden in the hedge maze.
+   THE TEN THINGS — read in the order Niamh pops the balloons.
+   Edit freely; tone is The Goose, in praise.
    ============================================================ */
-const CLUES = [
-  { title: "The First Feather",
-    body: "Where the kettle sings its quiet song, and mugs await their morning throng — lift the one that bears your name. Beneath it sleeps the second game." },
-  { title: "The Second Feather",
-    body: "Books I love and books I keep, on shelves where dusty stories sleep — count to ten, then look behind. A small surprise is yours to find." },
-  { title: "The Third Feather",
-    body: "The final clue is yours alone — go where you rest your sleepy head. Lift the corner of your bed, and there the goose has gently flown." }
+const LOVES = [
+  "Your super focus when reading.",
+  "Your singing in the shower.",
+  "Your interpretive dances with spins and kicks.",
+  "Your mad video game skills.",
+  "Your evocative vocabulary.",
+  "Your knee-slides in volleyball.",
+  "Your imaginative story-writing.",
+  "Your phone manners.",
+  "Your mermaid-like swimming.",
+  "Your kindness to friends and classmates."
+];
+const ORDINALS = [
+  "One", "Two", "Three", "Four", "Five",
+  "Six", "Seven", "Eight", "Nine", "Ten"
 ];
 
 /* ============================================================
    MAZE LAYOUT
-   # = hedge, . = path, S = start, F = feather, G = goose
+   # = hedge, . = path, S = start, B = balloon, G = goose
    ============================================================ */
 const MAZE = [
   "###############",
-  "#S....#......F#",
+  "#S...B#......B#",
   "#.###.#.#####.#",
-  "#.#.#...#...#.#",
+  "#.#B#...#...#.#",
   "#.#.###.#.#.#.#",
-  "#...#...#.#...#",
-  "#.#.#.###.###.#",
-  "#F#.#.....#.#.#",
+  "#B..#...#.#..B#",
+  "#.#.#.#G#.###.#",
+  "#B#.#B...B#.#.#",
   "#.#.#######.#.#",
-  "#.#.........#.#",
+  "#.#B........#.#",
   "#.###########.#",
-  "#......F.....G#",
+  "#......B......#",
   "###############"
+];
+
+/* ============================================================
+   PICTURES — hung in random framed positions on hedge walls.
+   Drop new files into 10/img/ and add their filenames here.
+   ============================================================ */
+const PICTURES = [
+  'maze-portrait-1.jpg',
+  'maze-portrait-2.jpg',
+  'maze-portrait-3.jpg',
+  'maze-portrait-4.jpg',
+  'maze-portrait-5.jpg',
+  'maze-portrait-6.jpg',
+  'maze-portrait-7.jpg',
+  'maze-portrait-8.jpg',
+  'maze-portrait-9.png',
+  'maze-portrait-10.png',
+  'maze-portrait-11.png',
+  'maze-portrait-12.png',
+  'maze-portrait-13.png',
+  'maze-portrait-14.png'
 ];
 
 /* ============================================================ */
@@ -390,24 +422,24 @@ function makeHedgeTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  // base
-  ctx.fillStyle = '#1d3a26';
+  // sunny green base
+  ctx.fillStyle = '#4a7d4e';
   ctx.fillRect(0, 0, 256, 256);
-  // leafy speckles, multiple sizes
+  // dappled leaf speckles — lighter shades dominate
   for (let i = 0; i < 4500; i++) {
     const x = Math.random() * 256;
     const y = Math.random() * 256;
     const r = Math.random() * 4 + 0.6;
     const t = Math.random();
-    if      (t > 0.85) ctx.fillStyle = '#4a7d54';
-    else if (t > 0.55) ctx.fillStyle = '#2d5a38';
-    else if (t > 0.25) ctx.fillStyle = '#1a3320';
-    else               ctx.fillStyle = '#0a1a10';
+    if      (t > 0.85) ctx.fillStyle = '#a8d182';
+    else if (t > 0.55) ctx.fillStyle = '#7ab262';
+    else if (t > 0.25) ctx.fillStyle = '#3d6b40';
+    else               ctx.fillStyle = '#26431f';
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
-  // a few brighter highlights for moonlight catch
-  for (let i = 0; i < 80; i++) {
-    ctx.fillStyle = 'rgba(180,210,160,0.18)';
+  // bright sun-catch highlights
+  for (let i = 0; i < 140; i++) {
+    ctx.fillStyle = 'rgba(255,250,200,0.28)';
     ctx.beginPath();
     ctx.arc(Math.random()*256, Math.random()*256, Math.random()*3+1, 0, Math.PI*2);
     ctx.fill();
@@ -422,22 +454,22 @@ function makeFloorTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  // dirt-and-stone base
-  ctx.fillStyle = '#3a2f24';
+  // warm sandy garden path
+  ctx.fillStyle = '#c9b58a';
   ctx.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 3000; i++) {
     const x = Math.random() * 256, y = Math.random() * 256;
     const r = Math.random() * 3 + 0.5;
     const t = Math.random();
-    if      (t > 0.9) ctx.fillStyle = '#776655';
-    else if (t > 0.6) ctx.fillStyle = '#4a3d2e';
-    else if (t > 0.3) ctx.fillStyle = '#2a2118';
-    else              ctx.fillStyle = '#1a140e';
+    if      (t > 0.9) ctx.fillStyle = '#e8d8b0';
+    else if (t > 0.6) ctx.fillStyle = '#b59e75';
+    else if (t > 0.3) ctx.fillStyle = '#a48a62';
+    else              ctx.fillStyle = '#8a7350';
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
-  // a scattering of small pale stones
-  for (let i = 0; i < 100; i++) {
-    ctx.fillStyle = 'rgba(200,190,170,0.4)';
+  // pale pebbles catching the sun
+  for (let i = 0; i < 140; i++) {
+    ctx.fillStyle = 'rgba(255,250,235,0.55)';
     ctx.beginPath();
     ctx.arc(Math.random()*256, Math.random()*256, Math.random()*2+0.5, 0, Math.PI*2);
     ctx.fill();
@@ -467,18 +499,38 @@ function makeEmojiTexture(emoji, size = 256) {
 // --- Three.js scene ---
 let scene, camera, renderer, clock;
 const walls = []; // for visual tweaks; collision uses MAZE grid directly
-const featherSprites = []; // {sprite, x, z, idx, collected}
+const balloons = []; // { group, x, z, baseY, phase, color, collected, releaseTime }
 let gooseSprite = null;
 let gooseGoal = null; // {x, z}
+let gooseCage = null;            // THREE.Group of bars + rings
+let cageState = 'closed';        // 'closed' | 'opening' | 'open'
+let cageOpenStart = 0;
+const CAGE_OPEN_SECS = 1.8;
+const CAGE_RISE = 6;             // world units the cage rises before vanishing
 let collected = 0;
-let totalFeathers = 0;
+let totalBalloons = 0;
+
+// cheerful balloon palette — picked in order so adjacent balloons differ
+const BALLOON_COLORS = [
+  0xff5b6b, 0xffb35a, 0xfde36b, 0x6dd07a, 0x5ec3e8,
+  0x9879e0, 0xff8fc8, 0x4ec1a4, 0xffa84a, 0xe85aa3
+];
 
 const player = {
   x: wx(1), z: wz(1), // world coords (cell centres) — overwritten on init from maze 'S'
-  yaw: 0,
-  speed: 3.4 * CELL,   // scale walking speed with cell size so traversal feels constant
-  turnSpeed: 2.4
+  yaw: -Math.PI / 2,   // face east at start (down the corridor, not into the hedge)
+  speed: 3.06 * CELL,  // walking speed (10% slower than before)
+  turnSpeed: 2.16      // turning speed (10% slower than before)
 };
+
+// camera/gait state
+const EYE_Y = 1.0;     // base eye height when standing still
+let bobPhase = 0;      // accumulator for sine-wave gait (only advances while walking)
+let bobAmp   = 0;      // current bob amplitude, eased in/out so stops feel smooth
+
+// velocity state — gradually ramps up when input starts (warmup) and down when released
+let walkVel = 0;       // signed scalar in world-units/sec along forward axis
+let turnVel = 0;       // signed scalar in rad/sec around Y
 
 const keys = {};
 let cluePhase = false;
@@ -486,11 +538,12 @@ let started = false;
 
 function init3D() {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x05080f);
-  // fog density retuned for the larger world so visibility stays ~3-4 cells
-  scene.fog = new THREE.FogExp2(0x0a1a2a, 0.13);
+  // sunny day — pale sky-blue, matching fog so hedge tops fade into the sky
+  const SKY = 0xbfe2f0;
+  scene.background = new THREE.Color(SKY);
+  scene.fog = new THREE.FogExp2(SKY, 0.045);   // light haze, much further visibility
 
-  camera = new THREE.PerspectiveCamera(72, 1, 0.05, 80);
+  camera = new THREE.PerspectiveCamera(72, 1, 0.05, 100);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -508,8 +561,9 @@ function init3D() {
   floor.position.set((COLS * CELL) / 2, 0, (ROWS * CELL) / 2);
   scene.add(floor);
 
-  // hedge walls
+  // hedge walls — tile the texture vertically so tall walls don't stretch
   const hedgeTex = makeHedgeTexture();
+  hedgeTex.repeat.set(1.6, 12);
   const wallMat = new THREE.MeshStandardMaterial({
     map: hedgeTex, roughness: 0.95, color: 0xffffff
   });
@@ -518,7 +572,8 @@ function init3D() {
     for (let x = 0; x < COLS; x++) {
       const ch = MAZE[y][x];
       if (ch === '#') {
-        const h = 1.5 + Math.random() * 0.35;     // shorter walls — friendlier hedge
+        // towering hedges that vanish up into the night fog
+        const h = 14 + Math.random() * 2.5;
         const w = CELL + Math.random() * 0.06;
         const d = CELL + Math.random() * 0.06;
         const m = new THREE.Mesh(
@@ -535,8 +590,8 @@ function init3D() {
       } else if (ch === 'S') {
         player.x = wx(x);
         player.z = wz(y);
-      } else if (ch === 'F') {
-        addFeather(wx(x), wz(y), totalFeathers++);
+      } else if (ch === 'B') {
+        addBalloon(wx(x), wz(y), totalBalloons++);
       } else if (ch === 'G') {
         addGoose(wx(x), wz(y));
         gooseGoal = { x: wx(x), z: wz(y) };
@@ -544,43 +599,196 @@ function init3D() {
     }
   }
 
-  // lights
-  scene.add(new THREE.AmbientLight(0x334466, 0.45));
-  const moon = new THREE.DirectionalLight(0xb0c4ff, 0.4);
-  moon.position.set(8, 14, 4);
-  scene.add(moon);
+  // lights — bright sunny daytime
+  scene.add(new THREE.AmbientLight(0xfff4e0, 0.85));
+  const sun = new THREE.DirectionalLight(0xfff2cf, 1.1);
+  sun.position.set(8, 18, 4);
+  scene.add(sun);
+  // a faint sky-tinted fill from below so corridor floors don't go dead
+  const skyFill = new THREE.HemisphereLight(0xbfe2f0, 0xc6b894, 0.35);
+  scene.add(skyFill);
 
-  // lantern attached to camera (range scaled with cell size)
-  const lantern = new THREE.PointLight(0xffd28c, 1.7, 7 * CELL, 1.6);
-  lantern.position.set(0, 0.3, 0);
-  camera.add(lantern);
+  // camera still in the scene graph (used to be lantern parent)
   scene.add(camera);
 
   // initial camera placement — eye height a touch lower so walls feel taller-but-friendly
-  camera.position.set(player.x, 1.0, player.z);
+  camera.position.set(player.x, EYE_Y, player.z);
   camera.rotation.order = 'YXZ';
   camera.rotation.y = player.yaw;
 
   clock = new THREE.Clock();
   resize();
   window.addEventListener('resize', resize);
+
+  // hang framed pictures on random exposed hedge faces
+  placePictures();
 }
 
-function addFeather(x, z, idx) {
-  const tex = makeEmojiTexture('🪶', 256);
-  const mat = new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthWrite: false,
-    color: 0xffffff
+function placePictures() {
+  // For every exposed wall face, measure how many path cells extend AWAY from it
+  // in a straight line — that's the corridor a player would walk down to face
+  // the picture head-on. We only hang pictures where that corridor is long
+  // enough to be a proper head-on view.
+  const dirs = [
+    { dx:  0, dy: -1, face: 'N' },
+    { dx:  0, dy:  1, face: 'S' },
+    { dx: -1, dy:  0, face: 'W' },
+    { dx:  1, dy:  0, face: 'E' }
+  ];
+  const slots = [];
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (MAZE[y][x] !== '#') continue;
+      for (const d of dirs) {
+        const px = x + d.dx, py = y + d.dy;
+        if (px < 0 || py < 0 || px >= COLS || py >= ROWS) continue;
+        if (MAZE[py][px] === '#') continue;
+        // walk outward in (dx,dy) counting straight path cells
+        let len = 0, cx = px, cy = py;
+        while (cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS && MAZE[cy][cx] !== '#') {
+          len++;
+          cx += d.dx; cy += d.dy;
+        }
+        slots.push({ wallX: x, wallY: y, face: d.face, corridorLen: len });
+      }
+    }
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  // tier by corridor length: 3+ is a great head-on view, 2 is passable, 1 is edge-on
+  const longCorridors  = slots.filter(s => s.corridorLen >= 3);
+  const shortCorridors = slots.filter(s => s.corridorLen === 2);
+  const fallback       = slots.filter(s => s.corridorLen === 1);
+  shuffle(longCorridors); shuffle(shortCorridors); shuffle(fallback);
+  const ordered = [...longCorridors, ...shortCorridors, ...fallback];
+
+  // avoid hanging two pictures so close they fight for the same view —
+  // skip a candidate if a previously-picked slot is within a 2-cell radius
+  const used = [];
+  function farEnough(s) {
+    for (const u of used) {
+      if (Math.abs(u.wallX - s.wallX) + Math.abs(u.wallY - s.wallY) < 2) return false;
+    }
+    return true;
+  }
+
+  const loader = new THREE.TextureLoader();
+  let pictureIdx = 0;
+  for (const slot of ordered) {
+    if (pictureIdx >= PICTURES.length) break;
+    if (!farEnough(slot)) continue;
+    used.push(slot);
+    const filename = PICTURES[pictureIdx++];
+    const url = 'img/' + encodeURIComponent(filename);
+    loader.load(
+      url,
+      (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        addFramedPicture(texture, slot);
+      },
+      undefined,
+      (err) => console.warn('picture failed to load:', filename, err)
+    );
+  }
+}
+
+function addFramedPicture(texture, slot) {
+  const img = texture.image;
+  const aspect = img.width / img.height;
+
+  // pick a target height with some variety, fit width to aspect & wall
+  let h = 0.65 + Math.random() * 0.35;          // 0.65 - 1.0 units tall
+  let w = h * aspect;
+  const maxW = CELL * 0.8;
+  if (w > maxW) { w = maxW; h = w / aspect; }
+  const maxH = 1.2;
+  if (h > maxH) { h = maxH; w = h * aspect; }
+
+  const group = new THREE.Group();
+
+  // wood-y frame as a slim box
+  const frameThickness = 0.05;
+  const frameDepth = 0.06;
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0x4a2f18, metalness: 0.25, roughness: 0.55
   });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(0.85, 0.85, 0.85);
-  sprite.position.set(x, 0.95, z);
-  scene.add(sprite);
-  // small point light to make it shimmer
-  const glow = new THREE.PointLight(0xffd060, 0.7, 2.6, 2);
-  glow.position.set(x, 0.95, z);
-  scene.add(glow);
-  featherSprites.push({ sprite, glow, x, z, idx, collected: false, phase: Math.random() * Math.PI * 2 });
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(w + frameThickness * 2, h + frameThickness * 2, frameDepth),
+    frameMat
+  );
+  group.add(frame);
+
+  // picture plane on the front face of the frame
+  const picMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85 });
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(w, h), picMat);
+  pic.position.z = frameDepth / 2 + 0.002;
+  group.add(pic);
+
+  // place & orient on the chosen wall face
+  const offset = CELL / 2 + frameDepth / 2 + 0.01;
+  const cx = wx(slot.wallX);
+  const cz = wz(slot.wallY);
+  const cy = 1.05 + (Math.random() - 0.5) * 0.25;     // varied gallery hang height
+
+  switch (slot.face) {
+    case 'N': group.position.set(cx, cy, cz - offset); group.rotation.y =  Math.PI;     break;
+    case 'S': group.position.set(cx, cy, cz + offset); group.rotation.y =  0;            break;
+    case 'W': group.position.set(cx - offset, cy, cz); group.rotation.y = -Math.PI / 2;  break;
+    case 'E': group.position.set(cx + offset, cy, cz); group.rotation.y =  Math.PI / 2;  break;
+  }
+  // small tilt for character — like someone hung it slightly off-true
+  group.rotation.z = (Math.random() - 0.5) * 0.04;
+  scene.add(group);
+}
+
+function addBalloon(x, z, idx) {
+  const color = BALLOON_COLORS[idx % BALLOON_COLORS.length];
+
+  const group = new THREE.Group();
+
+  // balloon body — slightly stretched sphere, glossy paint material
+  const bodyGeom = new THREE.SphereGeometry(0.22, 18, 16);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color, roughness: 0.35, metalness: 0.05,
+    emissive: color, emissiveIntensity: 0.1
+  });
+  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  body.scale.set(1, 1.2, 1);     // taller than wide
+  body.position.y = 0;
+  group.add(body);
+
+  // little knot/teat at the bottom of the balloon
+  const knot = new THREE.Mesh(
+    new THREE.ConeGeometry(0.045, 0.07, 8),
+    bodyMat
+  );
+  knot.position.y = -0.27;
+  knot.rotation.x = Math.PI;
+  group.add(knot);
+
+  // string trailing down toward the floor
+  const stringLen = 1.2;
+  const stringGeom = new THREE.CylinderGeometry(0.005, 0.005, stringLen, 4);
+  const stringMat = new THREE.MeshBasicMaterial({ color: 0x666666 });
+  const str = new THREE.Mesh(stringGeom, stringMat);
+  str.position.y = -0.27 - stringLen / 2;
+  group.add(str);
+
+  // hover at eye-ish level so they're easy to spot
+  const baseY = 1.55;
+  group.position.set(x, baseY, z);
+  scene.add(group);
+
+  balloons.push({
+    group, x, z, baseY,
+    phase: Math.random() * Math.PI * 2,
+    color, idx, collected: false, releaseTime: 0
+  });
 }
 
 function addGoose(x, z) {
@@ -596,6 +804,49 @@ function addGoose(x, z) {
   const glow = new THREE.PointLight(0xfff0c0, 1.1, 5, 2);
   glow.position.set(x, 1.2, z);
   scene.add(glow);
+
+  // build the cage: vertical bars + top & bottom rings (purely visual gating;
+  // the balloon-count tease still does the actual logic).
+  gooseCage = new THREE.Group();
+  const barMat = new THREE.MeshStandardMaterial({
+    color: 0x382418, metalness: 0.7, roughness: 0.4,
+    transparent: true, opacity: 1.0, emissive: 0x110800, emissiveIntensity: 0.3
+  });
+  const BAR_HEIGHT = 1.95;
+  const cageRadius = 0.65;
+  const numBars = 8;
+  const barGeom = new THREE.CylinderGeometry(0.045, 0.045, BAR_HEIGHT, 10);
+  for (let i = 0; i < numBars; i++) {
+    const a = (i / numBars) * Math.PI * 2;
+    const bar = new THREE.Mesh(barGeom, barMat);
+    bar.position.set(Math.cos(a) * cageRadius, BAR_HEIGHT / 2, Math.sin(a) * cageRadius);
+    gooseCage.add(bar);
+  }
+  // top & bottom rings to bind the bars and read clearly as a cage
+  const ringGeom = new THREE.TorusGeometry(cageRadius, 0.045, 8, 28);
+  const topRing = new THREE.Mesh(ringGeom, barMat);
+  topRing.rotation.x = Math.PI / 2;
+  topRing.position.y = BAR_HEIGHT;
+  gooseCage.add(topRing);
+  const botRing = topRing.clone();
+  botRing.position.y = 0.05;
+  gooseCage.add(botRing);
+  // a couple of cross-arches over the top for that birdcage silhouette
+  const archGeom = new THREE.TorusGeometry(cageRadius, 0.04, 8, 24, Math.PI);
+  for (let i = 0; i < 2; i++) {
+    const arch = new THREE.Mesh(archGeom, barMat);
+    arch.rotation.y = i * Math.PI / 2;
+    arch.position.y = BAR_HEIGHT;
+    gooseCage.add(arch);
+  }
+  gooseCage.position.set(x, 0, z);
+  scene.add(gooseCage);
+}
+
+function openCage() {
+  if (cageState !== 'closed' || !gooseCage) return;
+  cageState = 'opening';
+  cageOpenStart = clock.getElapsedTime();
 }
 
 function resize() {
@@ -603,6 +854,13 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+}
+
+// move `cur` toward `target` by at most `rate * dt` per call
+function approach(cur, target, rate, dt) {
+  const max = rate * dt;
+  if (target > cur) return Math.min(target, cur + max);
+  return Math.max(target, cur - max);
 }
 
 function isWall(x, z) {
@@ -624,45 +882,74 @@ function hitsWall(x, z, r = 0.32) {
 }
 
 function updatePlayer(dt) {
-  if (cluePhase) return;
+  if (cluePhase) {
+    // freeze position but bleed off momentum so resume starts at rest
+    walkVel *= 0.85;
+    turnVel *= 0.85;
+    return;
+  }
+
+  // input
+  let turnInput = 0, moveInput = 0;
+  if (keys['ArrowLeft']  || keys['a'] || keys['A']) turnInput += 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) turnInput -= 1;
+  if (keys['ArrowUp']    || keys['w'] || keys['W']) moveInput += 1;
+  if (keys['ArrowDown']  || keys['s'] || keys['S']) moveInput -= 1;
+
+  // ramp velocities — slower accel (warmup) than decel (quicker stop)
+  const targetWalk = moveInput * player.speed;
+  const targetTurn = turnInput * player.turnSpeed;
+  const ACCEL_W = player.speed     * 5;   // reaches full walk in ~0.2s
+  const DECEL_W = player.speed     * 11;  // settles to a stop in ~0.09s
+  const ACCEL_T = player.turnSpeed * 7;   // slightly snappier turn warmup
+  const DECEL_T = player.turnSpeed * 14;
+  walkVel = approach(walkVel, targetWalk,
+    Math.abs(targetWalk) > Math.abs(walkVel) ? ACCEL_W : DECEL_W, dt);
+  turnVel = approach(turnVel, targetTurn,
+    Math.abs(targetTurn) > Math.abs(turnVel) ? ACCEL_T : DECEL_T, dt);
 
   // turn
-  let turn = 0;
-  if (keys['ArrowLeft']  || keys['a'] || keys['A']) turn += 1;
-  if (keys['ArrowRight'] || keys['d'] || keys['D']) turn -= 1;
-  player.yaw += turn * player.turnSpeed * dt;
+  player.yaw += turnVel * dt;
 
-  // forward/back
-  let move = 0;
-  if (keys['ArrowUp']   || keys['w'] || keys['W']) move += 1;
-  if (keys['ArrowDown'] || keys['s'] || keys['S']) move -= 1;
-
-  if (move !== 0) {
-    const dx = -Math.sin(player.yaw) * move * player.speed * dt;
-    const dz = -Math.cos(player.yaw) * move * player.speed * dt;
+  // walk
+  const prevX = player.x, prevZ = player.z;
+  if (Math.abs(walkVel) > 0.001) {
+    const dx = -Math.sin(player.yaw) * walkVel * dt;
+    const dz = -Math.cos(player.yaw) * walkVel * dt;
     if (!hitsWall(player.x + dx, player.z)) player.x += dx;
     if (!hitsWall(player.x, player.z + dz)) player.z += dz;
   }
 
-  camera.position.set(player.x, 1.0, player.z);
+  // walking gait — bob amplitude tracks actual speed so warmup & cooldown
+  // produce a natural fade-in / fade-out of the head bob
+  const actuallyMoved = (player.x !== prevX) || (player.z !== prevZ);
+  const speedFrac = Math.min(1, Math.abs(walkVel) / player.speed);
+  if (actuallyMoved) bobPhase += dt * 9.5;
+  const bobTarget = actuallyMoved ? 0.055 * speedFrac : 0;
+  bobAmp += (bobTarget - bobAmp) * Math.min(1, dt * 7);
+  const bobY = Math.sin(bobPhase) * bobAmp;
+
+  camera.position.set(player.x, EYE_Y + bobY, player.z);
   camera.rotation.y = player.yaw;
 
   // compass needle
   const needle = document.getElementById('needle');
   if (needle) needle.style.transform = `rotate(${player.yaw}rad)`;
 
-  // pickups (threshold ~half a cell)
+  // pickups — closest balloon within range pops first; the message shown
+  // is keyed off collection ORDER (LOVES[collected]), not maze position
   const pickupR2 = (0.55 * CELL) * (0.55 * CELL);
-  for (const f of featherSprites) {
-    if (f.collected) continue;
-    const dx = f.x - player.x, dz = f.z - player.z;
+  for (const b of balloons) {
+    if (b.collected) continue;
+    const dx = b.x - player.x, dz = b.z - player.z;
     if (dx * dx + dz * dz < pickupR2) {
-      f.collected = true;
-      f.sprite.visible = false;
-      f.glow.visible = false;
+      b.collected = true;
+      b.releaseTime = clock.getElapsedTime();
+      const popOrder = collected;     // 0..9 — index into LOVES list
       collected++;
       updateHud();
-      showClue(f.idx);
+      if (collected >= totalBalloons) openCage();
+      showLove(popOrder);
       return;
     }
   }
@@ -672,13 +959,13 @@ function updatePlayer(dt) {
     const dx = gooseGoal.x - player.x, dz = gooseGoal.z - player.z;
     const goalR2 = (0.75 * CELL) * (0.75 * CELL);
     if (dx * dx + dz * dz < goalR2) {
-      if (collected >= totalFeathers) {
+      if (collected >= totalBalloons) {
         endGame();
       } else {
-        const remaining = totalFeathers - collected;
+        const remaining = totalBalloons - collected;
         showOverlay(
           'Not yet, dear Niamh.',
-          `You still have ${remaining} feather${remaining === 1 ? '' : 's'} to find. The Goose does not reward shortcuts.`
+          `You still have ${remaining} balloon${remaining === 1 ? '' : 's'} to find. The Goose does not reward shortcuts.`
         );
         // bump the player back a bit so they don't trigger every frame
         player.x -= -Math.sin(player.yaw) * 0.5 * CELL;
@@ -689,33 +976,80 @@ function updatePlayer(dt) {
 }
 
 function animateScene(dt, t) {
-  for (const f of featherSprites) {
-    if (f.collected) continue;
-    f.sprite.position.y = 0.95 + Math.sin(t * 2.2 + f.phase) * 0.13;
-    f.sprite.material.rotation = Math.sin(t * 1.4 + f.phase) * 0.4;
+  for (const b of balloons) {
+    if (!b.collected) {
+      // gentle floating bob + slow tilt sway
+      b.group.position.y = b.baseY + Math.sin(t * 1.4 + b.phase) * 0.12;
+      b.group.rotation.z = Math.sin(t * 0.9 + b.phase) * 0.06;
+      b.group.rotation.x = Math.cos(t * 0.7 + b.phase) * 0.04;
+    } else if (b.group) {
+      // released: rise rapidly into the sky, shrink, fade, then dispose
+      const elapsed = t - b.releaseTime;
+      const RELEASE_SECS = 2.2;
+      const p = Math.min(elapsed / RELEASE_SECS, 1);
+      b.group.position.y = b.baseY + p * 12;
+      const s = 1 - 0.6 * p;
+      b.group.scale.set(s, s, s);
+      b.group.traverse(child => {
+        if (child.material) {
+          child.material.transparent = true;
+          child.material.opacity = 1 - p;
+        }
+      });
+      if (p >= 1) {
+        scene.remove(b.group);
+        b.group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+        b.group = null;
+      }
+    }
   }
   if (gooseSprite) {
     gooseSprite.position.y = 1.0 + Math.sin(t * 1.3) * 0.06;
   }
+
+  // cage opening animation: rises into the fog while fading away
+  if (gooseCage && cageState === 'opening') {
+    const elapsed = t - cageOpenStart;
+    const p = Math.min(elapsed / CAGE_OPEN_SECS, 1);
+    const eased = 1 - Math.pow(1 - p, 3);          // easeOutCubic
+    gooseCage.position.y = eased * CAGE_RISE;
+    gooseCage.traverse(child => {
+      if (child.material) child.material.opacity = 1 - p;
+    });
+    if (p >= 1) {
+      scene.remove(gooseCage);
+      gooseCage.traverse(child => { if (child.geometry) child.geometry.dispose(); });
+      gooseCage = null;
+      cageState = 'open';
+    }
+  }
 }
 
 function updateHud() {
-  document.getElementById('featherCount').textContent =
-    `🪶 ${collected} / ${totalFeathers}`;
+  document.getElementById('balloonCount').textContent =
+    `🎈 ${collected} / ${totalBalloons}`;
 }
 
-function showClue(idx) {
-  const clue = CLUES[idx] || {
-    title: "A Curious Feather",
-    body: "The Goose has clearly run out of paper. Ask Dad."
-  };
-  showOverlay(clue.title, clue.body);
+function showLove(idx) {
+  const ordinal = ORDINALS[idx] || (idx + 1);
+  const body = LOVES[idx] || "(The Goose forgot to write this one. Sorry.)";
+  showOverlay(`Balloon ${ordinal}`, body);
 }
+let overlayOpenedAt = 0;
 function showOverlay(title, body) {
   document.getElementById('clueTitle').textContent = title;
   document.getElementById('clueBody').textContent = body;
   document.getElementById('clueOverlay').classList.add('active');
   cluePhase = true;
+  overlayOpenedAt = (clock && clock.getElapsedTime) ? clock.getElapsedTime() : 0;
+}
+// guard: ignore dismiss attempts during the first 500ms so a still-held key
+// or a slow finger lift can't immediately pop the message away
+function tryHideOverlay() {
+  if (!cluePhase) return;
+  const now = (clock && clock.getElapsedTime) ? clock.getElapsedTime() : 0;
+  if (now - overlayOpenedAt < 0.5) return;
+  hideOverlay();
 }
 function hideOverlay() {
   document.getElementById('clueOverlay').classList.remove('active');
@@ -739,8 +1073,14 @@ function loop() {
 
 // --- input ---
 window.addEventListener('keydown', e => {
+  // ignore key auto-repeat events: a held key shouldn't dismiss the overlay
+  // immediately after it appears, and movement is polled from `keys[]` anyway
+  if (e.repeat) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+    return;
+  }
   if (cluePhase) {
-    hideOverlay();
+    tryHideOverlay();
     e.preventDefault();
     return;
   }
@@ -760,7 +1100,7 @@ if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
 document.querySelectorAll('.touchpad-3d button').forEach(btn => {
   const dirMap = { fwd: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
   const k = dirMap[btn.dataset.dir];
-  const on  = (e) => { e.preventDefault(); if (cluePhase) { hideOverlay(); return; } keys[k] = true; };
+  const on  = (e) => { e.preventDefault(); if (cluePhase) { tryHideOverlay(); return; } keys[k] = true; };
   const off = (e) => { e.preventDefault(); keys[k] = false; };
   btn.addEventListener('touchstart',  on,  { passive: false });
   btn.addEventListener('touchend',    off, { passive: false });
@@ -770,13 +1110,14 @@ document.querySelectorAll('.touchpad-3d button').forEach(btn => {
   btn.addEventListener('mouseleave',  off);
 });
 
-document.getElementById('clueOverlay').addEventListener('click', hideOverlay);
+document.getElementById('clueOverlay').addEventListener('click', tryHideOverlay);
 document.getElementById('clueOverlay').addEventListener('touchstart', (e) => {
-  e.preventDefault(); hideOverlay();
+  e.preventDefault(); tryHideOverlay();
 }, { passive: false });
 
-// begin
-document.getElementById('beginBtn').addEventListener('click', () => {
+// begin — clicking anywhere on the intro screen (or the button, or even tapping)
+// drops Niamh into the labyrinth
+function begin() {
   if (!started) {
     started = true;
     init3D();
@@ -788,7 +1129,11 @@ document.getElementById('beginBtn').addEventListener('click', () => {
   document.getElementById('loading').style.display = 'none';
   // give renderer a tick to size correctly
   requestAnimationFrame(resize);
-});
+}
+document.getElementById('intro').addEventListener('click', begin);
+document.getElementById('intro').addEventListener('touchstart', (e) => {
+  e.preventDefault(); begin();
+}, { passive: false });
 
 // hide loading once script is parsed
 document.getElementById('loading').style.display = 'none';
