@@ -581,6 +581,9 @@ const CAGE_RISE = 6;             // world units the cage rises before vanishing
 let collected = 0;
 let totalBalloons = 0;
 
+// debug: picture-load diagnostic so we can see iPad failures on-device
+let picsTotal = 0, picsLoaded = 0, picsFailed = 0;
+
 // cheerful balloon palette — picked in order so adjacent balloons differ
 const BALLOON_COLORS = [
   0xff5b6b, 0xffb35a, 0xfde36b, 0x6dd07a, 0x5ec3e8,
@@ -757,18 +760,46 @@ function placePictures() {
     return true;
   }
 
-  let pictureIdx = 0;
+  // Build the queue of (filename, slot) pairs we want to place
+  const queue = [];
   for (const slot of ordered) {
-    if (pictureIdx >= PICTURES.length) break;
+    if (queue.length >= PICTURES.length) break;
     if (!farEnough(slot)) continue;
     used.push(slot);
-    const filename = PICTURES[pictureIdx++];
+    queue.push({ filename: PICTURES[queue.length], slot });
+  }
+  picsTotal = queue.length;
+  updateHud();
+
+  // Load them sequentially. iOS Safari drops textures when too many large
+  // image decodes happen at once; doing them one-at-a-time avoids that and
+  // makes load failures easy to attribute (we know exactly which one bombed).
+  function loadNext(i) {
+    if (i >= queue.length) return;
+    const { filename, slot } = queue[i];
     const url = 'img/' + encodeURIComponent(filename);
     loadDownscaledTexture(url, 1024,
-      (texture) => addFramedPicture(texture, slot),
-      (err) => console.warn('picture failed to load:', filename, err)
+      (texture) => {
+        try {
+          addFramedPicture(texture, slot);
+          picsLoaded++;
+          updateHud();
+        } catch (err) {
+          picsFailed++;
+          updateHud();
+          console.error('picture mesh failed:', filename, err);
+        }
+        loadNext(i + 1);
+      },
+      (err) => {
+        picsFailed++;
+        updateHud();
+        console.warn('picture failed to load:', filename, err);
+        loadNext(i + 1);
+      }
     );
   }
+  loadNext(0);
 }
 
 // Load an image, downscale to fit within `maxDim` on its longest side, and turn
@@ -790,6 +821,7 @@ function loadDownscaledTexture(url, maxDim, onLoad, onError) {
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = false;
+    tex.needsUpdate = true;
     onLoad(tex);
   };
   img.onerror = (err) => onError && onError(err);
@@ -1138,8 +1170,16 @@ function animateScene(dt, t) {
 }
 
 function updateHud() {
-  document.getElementById('balloonCount').textContent =
-    `🎈 ${collected} / ${totalBalloons}`;
+  let txt = `🎈 ${collected} / ${totalBalloons}`;
+  // diagnostic readout while we're chasing the iPad picture issue
+  if (picsTotal > 0 && (picsLoaded + picsFailed) < picsTotal) {
+    txt += `   🎨 ${picsLoaded}/${picsTotal}`;
+  } else if (picsFailed > 0) {
+    txt += `   🎨 ${picsLoaded}/${picsTotal} (${picsFailed} failed)`;
+  } else if (picsLoaded > 0) {
+    txt += `   🎨 ${picsLoaded}`;
+  }
+  document.getElementById('balloonCount').textContent = txt;
 }
 
 function showLove(idx) {
