@@ -59,3 +59,18 @@ It never leaves the iPad. There is no account, no server, and no analytics.
 
 Copy the folder. It's static files with no build step at serve time and no
 external requests — no fonts, scripts or trackers loaded from anywhere else.
+
+### If you ever move this folder
+
+`build.js` has one line near the top:
+
+    const BASE = '/draw/';
+
+Every link and every `src` in the built pages starts with that. Change it and
+rebuild if the folder moves to a different path on the site.
+
+It's written that way on purpose. The host serves `niamhvarley.com/draw` without
+redirecting to `niamhvarley.com/draw/`, and from a URL with no trailing slash a
+browser resolves a plain `draw.css` against the parent — it asks for
+`/draw.css`, gets a 404, and the page shows up with no styling and no working
+links. Absolute paths are right either way. Don't switch these back to relative.

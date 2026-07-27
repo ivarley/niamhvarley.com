@@ -18,6 +18,19 @@ const DIR = __dirname;
 const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8');
 const write = (f, s) => fs.writeFileSync(path.join(DIR, f), s);
 
+/*
+ * Where this folder lives on the site, with both slashes.
+ *
+ * Every href and src is written from here rather than left relative, because
+ * the host serves /draw without redirecting to /draw/. A browser sitting on
+ * /draw resolves a relative "draw.css" against the parent, asks for /draw.css,
+ * and gets a 404 — the page arrives with no styling and no working links.
+ * Absolute paths are correct with or without the trailing slash.
+ *
+ * If this folder ever moves, change this one line and rebuild.
+ */
+const BASE = '/draw/';
+
 /* ---------------------------------------------------------------- markdown */
 
 const escapeHtml = (s) =>
@@ -249,12 +262,12 @@ const page = ({ title, cls, bodyAttrs = '', main }) => `<!DOCTYPE html>
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#edefec">
 <title>${escapeHtml(title)}</title>
-<link rel="stylesheet" href="draw.css">
+<link rel="stylesheet" href="${BASE}draw.css">
 </head>
 <body class="${cls}"${bodyAttrs}>
 <a class="skip" href="#main">Skip to the exercise</a>
 ${main}
-<script src="draw.js"></script>
+<script src="${BASE}draw.js"></script>
 </body>
 </html>
 `;
@@ -267,7 +280,7 @@ function homePage(lessons, phases) {
     .map((l, i) => {
       const startsPhase = i > 0 && lessons[i - 1].phase !== l.phase;
       return `      <li class="cell${startsPhase ? ' is-phase-start' : ''}" data-lesson="${l.number}">
-        <a href="lesson-${l.number}.html">
+        <a href="${BASE}lesson-${l.number}.html">
           <span class="cell-fill hatch-${l.number}" aria-hidden="true"></span>
           <span class="cell-num">${l.number}</span>
           <span class="vh">Lesson ${l.number}, ${escapeHtml(l.title)}</span>
@@ -282,7 +295,7 @@ function homePage(lessons, phases) {
       const rows = mine
         .map(
           (l) => `        <li class="row" data-lesson="${l.number}">
-          <a href="lesson-${l.number}.html">
+          <a href="${BASE}lesson-${l.number}.html">
             <span class="row-num">${l.number}</span>
             <span class="row-text">
               <span class="row-title">${escapeHtml(l.title)}</span>
@@ -329,7 +342,7 @@ ${strip}
 ${bands}
 
   <footer class="foot">
-    <p><a class="foot-link" href="grown-ups.html">For grown-ups</a> — what these exercises
+    <p><a class="foot-link" href="${BASE}grown-ups.html">For grown-ups</a> — what these exercises
     are for, and how to help without wrecking it.</p>
     <p class="foot-clear" hidden>
       <button type="button" class="linkish" data-clear>Clear my progress</button>
@@ -353,8 +366,8 @@ function lessonPage(lesson, lessons) {
     : '';
 
   const nav = [
-    prev ? `<a class="pager-prev" href="lesson-${prev.number}.html"><span aria-hidden="true">←</span> ${escapeHtml(prev.title)}</a>` : '<span></span>',
-    next ? `<a class="pager-next" href="lesson-${next.number}.html">${escapeHtml(next.title)} <span aria-hidden="true">→</span></a>` : '<span></span>',
+    prev ? `<a class="pager-prev" href="${BASE}lesson-${prev.number}.html"><span aria-hidden="true">←</span> ${escapeHtml(prev.title)}</a>` : '<span></span>',
+    next ? `<a class="pager-next" href="${BASE}lesson-${next.number}.html">${escapeHtml(next.title)} <span aria-hidden="true">→</span></a>` : '<span></span>',
   ].join('\n    ');
 
   return page({
@@ -362,7 +375,7 @@ function lessonPage(lesson, lessons) {
     cls: 'lesson',
     bodyAttrs: ` data-lesson="${lesson.number}"`,
     main: `<nav class="topbar" aria-label="Course">
-  <a class="topbar-back" href="index.html"><span aria-hidden="true">←</span> All lessons</a>
+  <a class="topbar-back" href="${BASE}index.html"><span aria-hidden="true">←</span> All lessons</a>
   <span class="topbar-where">${escapeHtml(lesson.phase)} · ${lesson.number} of ${lessons.length}</span>
 </nav>
 
@@ -431,7 +444,7 @@ function grownupsPage(source) {
     title: 'For grown-ups — Endless drawing',
     cls: 'grownups',
     main: `<nav class="topbar" aria-label="Course">
-  <a class="topbar-back" href="index.html"><span aria-hidden="true">←</span> All lessons</a>
+  <a class="topbar-back" href="${BASE}index.html"><span aria-hidden="true">←</span> All lessons</a>
 </nav>
 
 <main id="main" class="sheet">
