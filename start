@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Serve the site locally.
+#
+# The pages under /draw use absolute paths, so opening the HTML as a file:// URL
+# leaves them unstyled and unlinked. They need to be served from a document root,
+# and public/ is that root.
+#
+# Port is arbitrary — just something unlikely to collide with another project.
+
+PORT="${PORT:-8791}"
+
+cd "$(dirname "$0")/public" || exit 1
+
+echo "niamhvarley.com → http://localhost:$PORT/"
+echo "drawing lessons → http://localhost:$PORT/draw/"
+echo
+
+exec python3 -m http.server "$PORT"
